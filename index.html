@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Weekly MSFT Reporting Workflow</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#ECEEEF; --paper-line:#C7CCD1; --ink:#1C2B3A; --ink-soft:#4C5A68;
+    --ana:#B5652F; --x1:#2E7D6B; --marcus:#A6812E; --chris:#4B4B9E;
+    --sheet:#FBFBFA; --card:#fff; --done-bg:#DADDE0; --done-ink:#8A949C;
+    --nh:112px; --nw:142px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#14191F; --paper-line:#2B343E; --ink:#E6EAEE; --ink-soft:#9AA6B2;
+      --sheet:#1A2027; --card:#222A33; --done-bg:#2E353D; --done-ink:#6F7B87;
+    }
+  }
+  *{box-sizing:border-box;}
+  html{color-scheme: light dark;}
+  body{margin:0; background:var(--paper); color:var(--ink); font-family:'IBM Plex Sans',system-ui,sans-serif;
+       padding:24px; padding-top:calc(24px + env(safe-area-inset-top,0px)); padding-bottom:calc(24px + env(safe-area-inset-bottom,0px));}
+  .sheet{max-width:1420px; margin:0 auto; background:var(--sheet); border:1.5px solid var(--ink);}
+  .titleblock{display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:16px;
+              border-bottom:2.5px solid var(--ink); padding:24px 30px 16px;}
+  .titleblock h1{font-family:'IBM Plex Serif',serif; font-size:26px; margin:0 0 6px; line-height:1.15;}
+  .titleblock p{margin:0; color:var(--ink-soft); font-size:13.5px;}
+  .meta{font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--ink-soft); line-height:1.7; text-align:right;}
+  .meta b{color:var(--ink);}
+  .weekin{font-family:'IBM Plex Mono',monospace; font-size:11.5px; font-weight:600; color:var(--ink); background:transparent; border:1px solid var(--paper-line); border-radius:3px; padding:1px 6px; width:96px; text-align:center;}
+  .weekin:focus{outline:none; border-color:var(--ink-soft); background:var(--sheet);}
+  .legend{display:flex; flex-wrap:wrap; gap:8px 22px; padding:12px 30px; border-bottom:1px solid var(--paper-line); font-size:12.5px; align-items:center;}
+  .legend .item{display:flex; align-items:center; gap:7px;}
+  .dot{width:11px; height:11px; border-radius:3px; flex:none;}
+  .legend .who{color:var(--ink-soft); font-size:11.5px;}
+  .legend .role{font-weight:600;}
+  .legend button{margin-left:auto; font:inherit; font-size:11.5px; padding:5px 10px; border:1px solid var(--ink-soft);
+                 background:transparent; color:var(--ink); border-radius:4px; cursor:pointer;}
+  .legend button:hover{background:var(--paper);}
+  .ovl{position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; z-index:50;}
+  .dlg{background:var(--sheet); color:var(--ink); border:1.5px solid var(--ink); border-radius:6px; padding:18px 20px; width:min(340px,90vw); font-size:13.5px;}
+  .dlg p{margin:0 0 10px;}
+  .dlg input{width:100%; font:inherit; padding:7px 8px; border:1px solid var(--ink-soft); border-radius:4px; background:var(--card); color:var(--ink);}
+  .dlg .row{display:flex; justify-content:flex-end; gap:8px; margin-top:14px;}
+  .dlg button{font:inherit; font-size:12.5px; padding:6px 14px; border-radius:4px; border:1px solid var(--ink-soft); background:transparent; color:var(--ink); cursor:pointer;}
+  .dlg button.ok{background:var(--ink); color:var(--sheet);}
+  .status{font-size:11px; color:var(--ink-soft);}
+
+  .diagram{padding:26px 30px 10px; overflow-x:auto;}
+  .lane{display:flex; align-items:center; margin-bottom:38px; width:max-content; min-width:100%;}
+  .lane-label{width:96px; flex:none; font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:15px;
+              border-right:2px solid var(--ink); padding-right:14px; margin-right:10px;}
+  .lane-label .prog{display:block; font-family:'IBM Plex Sans',sans-serif; font-weight:500; font-size:10.5px; color:var(--ink-soft); margin-top:4px;}
+  .lane-body{display:flex; align-items:center;}
+  .grp{margin-bottom:52px;}
+  .grp:last-child{margin-bottom:6px;}
+  .grp .lane{margin-bottom:26px;}
+  .grp .lane:last-child{margin-bottom:0;}
+  .flow-lead,.flow-row{display:flex; align-items:center; flex:none;}
+
+  .node{width:var(--nw); height:var(--nh); flex:none; background:var(--card); border:1.5px solid var(--ink);
+        border-left-width:5px; border-radius:3px; padding:8px 9px 7px; position:relative; cursor:pointer;
+        display:flex; flex-direction:column; user-select:none; transition:background .15s, opacity .15s;}
+  .node:hover{box-shadow:0 2px 8px rgba(0,0,0,.18);}
+  .node.milestone{outline:2.5px solid var(--ink); outline-offset:2px;}
+  .node .num{position:absolute; top:-9px; left:-9px; width:20px; height:20px; border-radius:50%; background:var(--ink); color:var(--sheet);
+             font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:11px; display:flex; align-items:center; justify-content:center;}
+  .node .task{font-weight:600; font-size:12px; line-height:1.25; margin-top:4px;}
+  .node .due{font-family:'IBM Plex Mono',monospace; font-size:10.5px; font-weight:600; margin-top:4px; width:100%; border:1px solid transparent; border-bottom:1px dashed var(--paper-line); background:transparent; padding:1px 2px; border-radius:2px; outline:none; display:block;}
+  .node input.due:focus{border:1px solid var(--ink-soft); background:var(--sheet);}
+  .node.done input.due{text-decoration:none;}
+  .node select{margin-top:auto; width:100%; font:inherit; font-size:11px; padding:3px 4px; border:1px solid var(--paper-line);
+               background:var(--sheet); color:var(--ink); border-radius:3px; cursor:pointer;}
+  .n-ana{border-left-color:var(--ana);} .n-ana .due{color:var(--ana);}
+  .n-x1{border-left-color:var(--x1);} .n-x1 .due{color:var(--x1);}
+  .n-marcus{border-left-color:var(--marcus);} .n-marcus .due{color:var(--marcus);}
+  .n-chris{border-left-color:var(--chris);} .n-chris .due{color:var(--chris);}
+
+  .node.done{background:var(--done-bg); border-color:var(--done-ink); border-left-color:var(--done-ink); color:var(--done-ink);}
+  .node.done .task{text-decoration:line-through;}
+  .node.done .due{color:var(--done-ink);}
+  .node.done .num{background:var(--done-ink); font-size:0;}
+  .node.done .num::before{content:"\2713"; font-size:12px;}
+  .node.done select{color:var(--done-ink); background:transparent;}
+  .node.tall{height:152px;}
+  .node textarea.notes{flex:1 1 auto; min-height:0; width:100%; margin:4px 0; font:inherit; font-size:10.5px; line-height:1.3; padding:2px 4px; border:1px solid var(--paper-line); background:var(--sheet); color:var(--ink); border-radius:3px; resize:none;}
+  .node textarea.notes:focus{outline:none; border-color:var(--ink-soft);}
+  .node.done textarea.notes{color:var(--done-ink); background:transparent;}
+  .node.done.milestone{outline-color:var(--done-ink);}
+  .node.na{opacity:.4; border-style:dashed; border-left-style:solid; cursor:default;}
+  .node.na:hover{box-shadow:none;}
+
+  .arrow{width:26px; flex:none; height:2px; background:var(--ink); position:relative; margin:0 2px;}
+  .arrow::after,.branch-connector .out::after{content:""; position:absolute; right:0; top:50%; border-top:5px solid transparent;
+        border-bottom:5px solid transparent; border-left:7px solid var(--ink); transform:translateY(-50%);}
+  .branch-connector{position:relative; width:34px; height:calc(var(--nh)*2 + 10px); flex:none;}
+  .branch-connector .in{position:absolute; left:0; top:calc(var(--nh) + 4px); width:14px; height:2px; background:var(--ink);}
+  .branch-connector .joint{position:absolute; left:10px; top:calc(var(--nh));  width:8px; height:8px; border-radius:50%; background:var(--ink);}
+  .branch-connector .vert{position:absolute; left:14px; top:calc(var(--nh)/2); width:2px; height:calc(var(--nh) + 10px); background:var(--ink);}
+  .branch-connector .out{position:absolute; left:14px; width:20px; height:2px; background:var(--ink);}
+  .branch-connector .out-top{top:calc(var(--nh)/2);}
+  .branch-connector .out-bot{top:calc(var(--nh)*1.5 + 10px);}
+  .branch-rows{display:flex; flex-direction:column; gap:10px; flex:none;}
+
+  .hint{padding:0 30px 18px; font-size:12px; color:var(--ink-soft);}
+  .key-wrap{padding:6px 30px 28px;}
+  .key-title{font-family:'IBM Plex Serif',serif; font-weight:600; font-size:15px; margin:12px 0 10px; padding-top:14px; border-top:1px solid var(--paper-line);}
+  .key-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(380px,1fr)); gap:8px 30px;}
+  .key-row{display:flex; gap:10px; font-size:12.5px; line-height:1.4;}
+  .key-row .kn{flex:none; width:22px; height:22px; border-radius:5px; color:#fff; font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:12px; display:flex; align-items:center; justify-content:center; margin-top:1px;}
+  .key-row b{display:block;} .key-row span{color:var(--ink-soft); font-size:11.5px;}
+</style>
+</head>
+<body>
+<div class="sheet">
+  <div class="titleblock">
+    <div>
+      <h1>Weekly MSFT Reporting Workflow</h1>
+      <p>Click a task to mark it done. Use the dropdown on a task to assign it.</p>
+    </div>
+    <div class="meta">
+      <div>WEEK OF: <input id="weekInput" class="weekin" type="text" value="08/31/26" aria-label="Week of"></div>
+      <div>PROJECTS: <b>LVL07 · LYH03 · AVC02 · AVC01 · AVC17/18 · AVC03 · AVC19</b></div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <div class="item"><span class="dot" style="background:var(--ana)"></span><span class="role">Ana</span><span class="who">file prep</span></div>
+    <div class="item"><span class="dot" style="background:var(--x1)"></span><span class="role">Staff "X1"</span><span class="who">progress, reports, slides</span></div>
+    <div class="item"><span class="dot" style="background:var(--marcus)"></span><span class="role">Marcus</span><span class="who">QC &amp; review</span></div>
+    <div class="item"><span class="dot" style="background:var(--chris)"></span><span class="role">Chris</span><span class="who">meetings, greenlight, presents</span></div>
+    <span class="status" id="status"></span>
+    <button id="resetBtn" type="button">Reset week</button>
+  </div>
+
+  <div class="diagram" id="diagram"></div>
+  <div class="hint">Due times and the week are editable text boxes. Double outline = milestone. Faded dashed = not required this cycle. Pick "+ Add person…" in any dropdown to add someone to the list for everyone. "Reset week" clears checkmarks, notes, due times and the week, and unassigns Ana and Staff "X1" tasks (Marcus and Chris tasks go back to Marcus and Chris).</div>
+
+  <div class="key-wrap">
+    <div class="key-title">Step key — same 10 activities, every project</div>
+    <div class="key-grid" id="key"></div>
+  </div>
+</div>
+
+<script>
+const STEPS = [
+  {n:0, t:"Prep Update File",  role:"ana",    who:"Ana",       d:"Baseline set, clean copy ready for progress entry."},
+  {n:1, t:"Capture Progress",  role:"x1",     who:'Staff "X1"',d:"Actuals, remaining-duration reductions, move data date, log out-of-sequence count."},
+  {n:2, t:"OOS Cleanup",       role:"marcus", who:"Marcus",    d:"First-pass review; relay outstanding notes to Chris."},
+  {n:3, t:"Update Meeting",    role:"chris",  who:"Chris",     d:"Lead the meeting with project team, lock down the .XER. Forks into two concurrent tracks.", ms:true},
+  {n:4, t:"Run Reports",       role:"x1",     who:'Staff "X1"',d:"Match prior mid-/end-of-month package; flag accuracy issues. Concurrent with step 7."},
+  {n:5, t:"Near-Final Review", role:"marcus", who:"Marcus",    d:"Sign off on package, send to Chris for final review."},
+  {n:6, t:"Final Greenlight",  role:"chris",  who:"Chris",     d:"Chris or Marcus distributes the package to the team.", ms:true},
+  {n:7, t:"Draft Slides",      role:"x1",     who:'Staff "X1"',d:"Presentation deck drafted, issues flagged to Marcus. Concurrent with step 4."},
+  {n:8, t:"Slides Sign-off",   role:"marcus", who:"Marcus",    d:"Relay to Chris at least 30 min before the scheduled meeting."},
+  {n:9, t:"Present to MSFT",   role:"chris",  who:"Chris",     d:"Chris presents the slides.", ms:true}
+];
+const NA = "n/a";
+/* "due" values are only the starting plan for the week of 8/31/26. After the first Reset week they are blank. */
+const PROJECTS = [
+  {id:"AVC01", due:["Fri","Tue COB","Wed AM","Wed 11a–12p","Wed PM","Wed COB / Thu AM","Thu COB 9/3","Wed PM","Thu AM","Thu 1–2p"]},
+  {id:"AVC02", due:["Fri","Mon COB","Tue AM","Tue 3–4p","Wed AM","Wed AM","Thu COB 9/3","Wed PM","Thu AM","Thu 1–2p"]},
+  {id:"AVC03", due:["Fri","Tue COB","Wed AM","Wed PM (TBD)","Wed PM","Wed COB / Thu AM","Thu COB 9/3","Wed PM","Thu AM","Thu 2–3p"]},
+  {id:"AVC17/18", due:["Fri","Tue COB","Wed AM","Wed PM (TBD)","Wed PM","Wed COB / Thu AM","Thu COB 9/3","Wed PM","Thu AM","Thu 2–3p"]},
+  {id:"AVC19", due:["Fri","Tue COB","Wed AM","Wed PM (TBD)","Wed PM","Wed COB / Thu AM","Thu COB 9/3","Wed PM","Thu AM","Thu 2–3p"]},
+  {id:"LVL07", due:["Fri","Fri",NA,"Mon COB","Tue AM","Tue PM","Tue PM",NA,NA,NA]},
+  {id:"LYH03", due:["Fri","Mon COB","Tue AM","Tue 1–2p","Tue PM","Wed AM","Thu COB 9/3","Wed PM","Thu AM","Thu 3p"]}
+];
+const ORDER = [["AVC01","AVC02","AVC03"],["AVC17/18","AVC19"],["LVL07"],["LYH03"]];
+const DEFAULT_ROSTER = ["Ana",'Staff "X1"',"Marcus","Chris"];
+const DEFAULT_WEEK = "08/31/26";
+const ADD = "__add__";
+
+const $ = id => document.getElementById(id);
+const key = (p,s) => p.replace(/[^A-Za-z0-9]/g,"") + "-" + s;
+const esc = t => String(t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const KEYMAP = {};
+PROJECTS.forEach(p => STEPS.forEach((_,s) => KEYMAP[key(p.id,s)] = {p, s}));
+
+let pass = localStorage.getItem("msft_pc") || "";
+let board = {tasks:{}, week:null, roster:null};
+let pending = 0, lastJSON = "", chain = Promise.resolve();
+
+/* ---------- server calls ---------- */
+async function api(method, body){
+  const r = await fetch("/api/board", {method, cache:"no-store",
+    headers:{"Content-Type":"application/json","x-passcode":pass}, body: body ? JSON.stringify(body) : undefined});
+  if(r.status === 401) throw Object.assign(new Error("auth"), {auth:true});
+  if(!r.ok) throw new Error("http " + r.status);
+  return r.json();
+}
+function setStatus(t){ $("status").textContent = t; }
+function send(body){
+  pending++;
+  chain = chain.then(() => api("POST", body))
+    .catch(e => { if(e.auth) showGate(); else setStatus("Couldn't save — check your connection and try again"); })
+    .finally(() => { pending--; lastJSON = ""; });
+}
+async function load(){
+  try{
+    const j = await api("GET");
+    const s = JSON.stringify(j);
+    if(s !== lastJSON){
+      lastJSON = s;
+      board = {tasks:j.tasks || {}, week:(j.week === undefined ? null : j.week), roster:j.roster || null};
+      applyWeek(); render();
+    }
+    setStatus("Live — synced " + new Date().toLocaleTimeString([], {hour:"numeric", minute:"2-digit"}));
+    return true;
+  }catch(e){
+    if(e.auth){ showGate(); return false; }
+    setStatus("Can't reach the server"); return false;
+  }
+}
+
+/* ---------- view helpers ---------- */
+function view(p, s){
+  const st = STEPS[s], rec = board.tasks[key(p.id,s)];
+  if(!rec) return {done:false, assignee:st.who, due:p.due[s], notes:""};
+  return {done:!!rec.done, assignee:rec.assignee || "", due:rec.due || "", notes:rec.notes || ""};
+}
+function roster(){ return board.roster && board.roster.length ? board.roster : DEFAULT_ROSTER; }
+function change(k, changes){
+  const {p, s} = KEYMAP[k];
+  const next = Object.assign({}, view(p, s), changes);
+  board.tasks[k] = next;
+  send({op:"task", k, data:next});
+  render();
+}
+function applyWeek(){
+  const w = $("weekInput");
+  if(document.activeElement !== w) w.value = board.week === null ? DEFAULT_WEEK : board.week;
+}
+
+/* ---------- drawing ---------- */
+function nodeHTML(p, s){
+  const st = STEPS[s], na = p.due[s] === NA, k = key(p.id, s), v = view(p, s);
+  const done = v.done && !na;
+  const cls = ["node","n-"+st.role, st.ms?"milestone":"", na?"na":"", done?"done":"", (s===1&&!na)?"tall":""].join(" ").replace(/\s+/g," ");
+  let sel = "";
+  if(!na){
+    const names = roster().includes(v.assignee) || !v.assignee ? roster() : roster().concat([v.assignee]);
+    sel = '<select data-k="'+k+'" aria-label="Assign '+st.t+'"><option value=""'+(v.assignee===""?' selected':'')+'>Unassigned</option>' +
+      names.map(n => '<option value="'+esc(n)+'"'+(n===v.assignee?' selected':'')+'>'+esc(n)+'</option>').join("") +
+      '<option value="'+ADD+'">+ Add person…</option></select>';
+  }
+  return '<div class="'+cls+'" data-k="'+k+'" '+(na?'':'role="button" tabindex="0" ')+'>' +
+    '<div class="num">'+s+'</div><div class="task">'+st.t+'</div>' +
+    (na ? '<div class="due">not required</div>' : '<input class="due" type="text" data-k="'+k+'" value="'+esc(v.due)+'" placeholder="Due…" aria-label="Due time for '+st.t+'">') +
+    ((s===1&&!na) ? '<textarea class="notes" data-k="'+k+'" placeholder="Notes…" aria-label="Notes for '+st.t+'">'+esc(v.notes)+'</textarea>' : '') +
+    sel + '</div>';
+}
+function render(){
+  const a = document.activeElement;
+  if(a && ["SELECT","INPUT","TEXTAREA"].includes(a.tagName) && $("diagram").contains(a)) return;
+  const arrow = '<div class="arrow"></div>';
+  const lane = p => {
+    const total = STEPS.filter((_,i) => p.due[i] !== NA).length;
+    const done = STEPS.filter((_,i) => p.due[i] !== NA && view(p,i).done).length;
+    return '<div class="lane"><div class="lane-label">'+p.id+'<span class="prog">'+done+' / '+total+' done</span></div><div class="lane-body">' +
+      '<div class="flow-lead">'+[0,1,2,3].map(i=>nodeHTML(p,i)).join(arrow)+'</div>' +
+      '<div class="branch-connector"><div class="in"></div><div class="joint"></div><div class="vert"></div><div class="out out-top"></div><div class="out out-bot"></div></div>' +
+      '<div class="branch-rows"><div class="flow-row">'+[4,5,6].map(i=>nodeHTML(p,i)).join(arrow)+'</div>' +
+      '<div class="flow-row">'+[7,8,9].map(i=>nodeHTML(p,i)).join(arrow)+'</div></div></div></div>';
+  };
+  const sx = $("diagram").scrollLeft;
+  $("diagram").innerHTML = ORDER.map(g => '<div class="grp">' + g.map(id => lane(PROJECTS.find(p => p.id === id))).join("") + '</div>').join("");
+  $("diagram").scrollLeft = sx;
+}
+function renderKey(){
+  $("key").innerHTML = STEPS.map(s =>
+    '<div class="key-row"><div class="kn" style="background:var(--'+s.role+')">'+s.n+'</div><div><b>'+s.t+'</b><span>'+esc(s.d)+'</span></div></div>').join("");
+}
+
+/* ---------- dialogs (browser pop-ups are not used) ---------- */
+function openDialog(msg, withInput, okLabel, cb){
+  const ov = document.createElement("div"); ov.className = "ovl";
+  ov.innerHTML = '<div class="dlg" role="dialog" aria-modal="true"><p></p>' + (withInput ? '<input type="text" maxlength="40" placeholder="Name">' : '') +
+    '<div class="row"><button type="button" class="cancel">Cancel</button><button type="button" class="ok">'+okLabel+'</button></div></div>';
+  ov.querySelector("p").textContent = msg;
+  document.body.appendChild(ov);
+  const inp = ov.querySelector("input");
+  const close = r => { ov.remove(); cb(r); };
+  ov.querySelector(".cancel").onclick = () => close(null);
+  ov.querySelector(".ok").onclick = () => close(withInput ? inp.value.trim() : true);
+  ov.addEventListener("click", e => { if(e.target === ov) close(null); });
+  ov.addEventListener("keydown", e => { if(e.key === "Escape") close(null); if(e.key === "Enter") ov.querySelector(".ok").click(); });
+  (inp || ov.querySelector(".ok")).focus();
+}
+function showGate(msg){
+  if(document.querySelector(".gate")) { if(msg) document.querySelector(".gate .err").textContent = msg; return; }
+  const ov = document.createElement("div"); ov.className = "ovl gate";
+  ov.innerHTML = '<div class="dlg" role="dialog" aria-modal="true"><p><b>Team passcode</b></p><p style="color:var(--ink-soft);font-size:12px">Enter the passcode your team lead gave you to view and edit this board.</p>' +
+    '<input type="password" autocomplete="current-password" placeholder="Passcode"><p class="err" style="color:#B3261E;font-size:12px;margin:8px 0 0"></p>' +
+    '<div class="row"><button type="button" class="ok">Enter</button></div></div>';
+  document.body.appendChild(ov);
+  const inp = ov.querySelector("input"), err = ov.querySelector(".err");
+  if(msg) err.textContent = msg;
+  const go = async () => {
+    pass = inp.value; lastJSON = "";
+    if(await load()){ localStorage.setItem("msft_pc", pass); ov.remove(); }
+    else { pass = ""; err.textContent = "That passcode didn't work."; }
+  };
+  ov.querySelector(".ok").onclick = go;
+  inp.addEventListener("keydown", e => { if(e.key === "Enter") go(); });
+  inp.focus();
+}
+
+/* ---------- interactions ---------- */
+const dia = $("diagram");
+dia.addEventListener("click", e => {
+  if(e.target.closest("select,input,textarea")) return;
+  const node = e.target.closest(".node");
+  if(!node || node.classList.contains("na")) return;
+  const k = node.dataset.k, {p, s} = KEYMAP[k];
+  change(k, {done: !view(p, s).done});
+});
+dia.addEventListener("keydown", e => {
+  if((e.key === "Enter" || e.key === " ") && e.target.classList.contains("node")){ e.preventDefault(); e.target.click(); }
+});
+dia.addEventListener("change", e => {
+  const ta = e.target.closest("textarea.notes");
+  if(ta){ change(ta.dataset.k, {notes: ta.value}); return; }
+  const inp = e.target.closest("input.due");
+  if(inp){ change(inp.dataset.k, {due: inp.value.trim()}); return; }
+  const sel = e.target.closest("select"); if(!sel) return;
+  const k = sel.dataset.k;
+  if(sel.value === ADD){
+    sel.blur();
+    openDialog("Name to add to the assignee list:", true, "Add", name => {
+      if(name){
+        const names = roster().slice();
+        if(!names.includes(name)){ names.push(name); board.roster = names; send({op:"roster", names}); }
+        change(k, {assignee: name});
+      } else render();
+    });
+    return;
+  }
+  sel.blur(); change(k, {assignee: sel.value});
+});
+$("weekInput").addEventListener("change", e => {
+  board.week = e.target.value.trim(); send({op:"week", value: board.week});
+});
+
+/* Reset week: clears checkmarks, notes, due times and the week.
+   Ana / Staff "X1" tasks become unassigned; Marcus / Chris tasks go back to Marcus / Chris. */
+$("resetBtn").addEventListener("click", () => {
+  openDialog('Reset the week? This clears all checkmarks, notes, due times and the week date, and unassigns the Ana and Staff "X1" tasks. Marcus and Chris tasks go back to Marcus and Chris. Project names, steps and the people list are kept.',
+    false, "Reset", ok => {
+      if(!ok) return;
+      const tasks = {};
+      PROJECTS.forEach(p => STEPS.forEach((st, s) => {
+        if(p.due[s] === NA) return;
+        tasks[key(p.id, s)] = {done:false, assignee:(st.role==="marcus"||st.role==="chris") ? st.who : "", due:"", notes:""};
+      }));
+      board.tasks = tasks; board.week = "";
+      send({op:"reset", tasks, week:""});
+      applyWeek(); render();
+    });
+});
+
+/* ---------- start ---------- */
+renderKey(); render(); applyWeek();
+if(pass) load().then(ok => { if(!ok && !document.querySelector(".gate")) showGate(); }); else showGate();
+setInterval(() => {
+  if(document.hidden || pending > 0 || document.querySelector(".ovl")) return;
+  const a = document.activeElement;
+  if(a && ["SELECT","INPUT","TEXTAREA"].includes(a.tagName)) return;
+  load();
+}, 8000);
+document.addEventListener("visibilitychange", () => { if(!document.hidden && pass && !document.querySelector(".ovl")) load(); });
+</script>
+</body>
+</html>
